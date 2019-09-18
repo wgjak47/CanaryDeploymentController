@@ -1,0 +1,7 @@
+apiVersion: webapp.wgjak47.me/v1
+kind: CanaryDeployment
+metadata:
+  name: canarydeployment-sample
+spec:
+  # Add fields here
+  foo: bar

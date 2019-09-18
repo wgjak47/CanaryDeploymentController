@@ -1,3 +1,7 @@
 version: "2"
 domain: wgjak47.me
 repo: CanaryDeploymentController
+resources:
+- group: webapp
+  version: v1
+  kind: CanaryDeployment
