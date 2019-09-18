@@ -27,15 +27,15 @@ import (
 type CanaryDeploymentSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	CommonSpec *apps.DeploymentSpec   `json:"commonSpec"`
-	AppSpecs   []*apps.DeploymentSpec `json:"appSpecs"`
+	CommonSpec *apps.DeploymentSpec            `json:"commonSpec"`
+	AppSpecs   map[string]*apps.DeploymentSpec `json:"appSpecs"`
 }
 
 // CanaryDeploymentStatus defines the observed state of CanaryDeployment
 type CanaryDeploymentStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	AppStatus []*apps.DeploymentStatus `json:"appStatus"`
+	AppStatus map[string]*apps.DeploymentStatus `json:"appStatus"`
 }
 
 // +kubebuilder:object:root=true
@@ -50,7 +50,7 @@ type CanaryDeployment struct {
 }
 
 // +kubebuilder:object:root=true
-
+// +kubebuilder:subresource:status
 // CanaryDeploymentList contains a list of CanaryDeployment
 type CanaryDeploymentList struct {
 	metav1.TypeMeta `json:",inline"`

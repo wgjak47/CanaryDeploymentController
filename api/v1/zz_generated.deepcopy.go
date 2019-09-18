@@ -93,13 +93,17 @@ func (in *CanaryDeploymentSpec) DeepCopyInto(out *CanaryDeploymentSpec) {
 	}
 	if in.AppSpecs != nil {
 		in, out := &in.AppSpecs, &out.AppSpecs
-		*out = make([]*appsv1.DeploymentSpec, len(*in))
-		for i := range *in {
-			if (*in)[i] != nil {
-				in, out := &(*in)[i], &(*out)[i]
+		*out = make(map[string]*appsv1.DeploymentSpec, len(*in))
+		for key, val := range *in {
+			var outVal *appsv1.DeploymentSpec
+			if val == nil {
+				(*out)[key] = nil
+			} else {
+				in, out := &val, &outVal
 				*out = new(appsv1.DeploymentSpec)
 				(*in).DeepCopyInto(*out)
 			}
+			(*out)[key] = outVal
 		}
 	}
 }
@@ -119,13 +123,17 @@ func (in *CanaryDeploymentStatus) DeepCopyInto(out *CanaryDeploymentStatus) {
 	*out = *in
 	if in.AppStatus != nil {
 		in, out := &in.AppStatus, &out.AppStatus
-		*out = make([]*appsv1.DeploymentStatus, len(*in))
-		for i := range *in {
-			if (*in)[i] != nil {
-				in, out := &(*in)[i], &(*out)[i]
+		*out = make(map[string]*appsv1.DeploymentStatus, len(*in))
+		for key, val := range *in {
+			var outVal *appsv1.DeploymentStatus
+			if val == nil {
+				(*out)[key] = nil
+			} else {
+				in, out := &val, &outVal
 				*out = new(appsv1.DeploymentStatus)
 				(*in).DeepCopyInto(*out)
 			}
+			(*out)[key] = outVal
 		}
 	}
 }
