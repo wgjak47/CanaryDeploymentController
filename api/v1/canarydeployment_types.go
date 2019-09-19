@@ -23,23 +23,32 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+type DeploymentPatchSpec struct {
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Enum:=["json", "merge"]
+	Type string
+	Spec apps.DeploymentSpec
+}
+
 // CanaryDeploymentSpec defines the desired state of CanaryDeployment
 type CanaryDeploymentSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	CommonSpec *apps.DeploymentSpec            `json:"commonSpec"`
-	AppSpecs   map[string]*apps.DeploymentSpec `json:"appSpecs"`
+	// +kubebuilder:validation:Required
+	CommonSpec apps.DeploymentSpec `json:"commonSpec"`
+	// +kubebuilder:validation:Required
+	AppSpecs map[string]DeploymentPatchSpec `json:"appSpecs"`
 }
 
 // CanaryDeploymentStatus defines the observed state of CanaryDeployment
 type CanaryDeploymentStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	AppStatus map[string]*apps.DeploymentStatus `json:"appStatus"`
+	AppStatus map[string]apps.DeploymentStatus `json:"appStatus"`
 }
 
 // +kubebuilder:object:root=true
-
+// +kubebuilder:subresource:status
 // CanaryDeployment is the Schema for the canarydeployments API
 type CanaryDeployment struct {
 	metav1.TypeMeta   `json:",inline"`
