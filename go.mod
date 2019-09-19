@@ -4,6 +4,7 @@ go 1.12
 
 require (
 	github.com/evanphx/json-patch v4.5.0+incompatible
+	github.com/ghodss/yaml v1.0.0
 	github.com/go-logr/logr v0.1.0
 	github.com/onsi/ginkgo v1.8.0
 	github.com/onsi/gomega v1.5.0

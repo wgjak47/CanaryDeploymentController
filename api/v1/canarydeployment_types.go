@@ -25,9 +25,9 @@ import (
 
 type DeploymentPatchSpec struct {
 	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:Enum:=["json", "merge"]
+	// +kubebuilder:validation:Enum:=["strategic", "merge"]
 	Type string
-	Spec apps.DeploymentSpec
+	Spec string
 }
 
 // CanaryDeploymentSpec defines the desired state of CanaryDeployment

@@ -58,6 +58,9 @@ func (r *CanaryDeploymentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, e
 		// resource is created in future.
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
+	// init AppStatus cause golang set nil as default value for map as struct field
+	canaryDeployment.Status.AppStatus = make(map[string]apps.DeploymentStatus)
+	log.Info("fetching CanaryDeployment", "cd_content", canaryDeployment)
 
 	if err := r.removeUselessDeployments(ctx, log, &canaryDeployment); err != nil {
 		log.Error(err, "removeOldDeployment error")
@@ -68,6 +71,7 @@ func (r *CanaryDeploymentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, e
 		log.Error(err, "error generate new deployments")
 		return ctrl.Result{}, err
 	} else {
+		log.Info("newDeployments", "deployments", newDeployments)
 		for _, newDeployment := range newDeployments {
 			oldDeployment := apps.Deployment{}
 			err := r.Client.Get(ctx, client.ObjectKey{Namespace: newDeployment.Namespace, Name: newDeployment.Name}, &oldDeployment)
@@ -78,19 +82,21 @@ func (r *CanaryDeploymentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, e
 						log.Error(err, "failed to create Deployment resource", "name", newDeployment.Name)
 						return ctrl.Result{}, err
 					}
+				} else {
+					log.Error(err, "failed to get old Deployment", "name", newDeployment.Name)
+					return ctrl.Result{}, err
 				}
-				log.Error(err, "failed to get old Deployment", "name", newDeployment.Name)
-				return ctrl.Result{}, err
 			} else {
 				if err := r.Client.Update(ctx, &newDeployment); err != nil {
 					log.Error(err, "failed to update Deployment update", "name", newDeployment.Name)
 					return ctrl.Result{}, err
 				}
 			}
+			log.Info("newDeployments", "canaryDeployment Status", canaryDeployment)
 			canaryDeployment.Status.AppStatus[newDeployment.Name] = newDeployment.Status
 		}
 		if err := r.Client.Status().Update(ctx, &canaryDeployment); err != nil {
-			log.Error(err, "failed to update MyKind status")
+			log.Error(err, "failed to update canaryDeployment status")
 			return ctrl.Result{}, err
 		}
 		log.Info("resource status synced", "name", canaryDeployment.Name)
@@ -101,27 +107,25 @@ func (r *CanaryDeploymentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, e
 
 func (r *CanaryDeploymentReconciler) patchDeploymentSpec(
 	spec *apps.DeploymentSpec,
-	patch *apps.DeploymentSpec,
+	patch []byte,
 	patchType string,
 ) (apps.DeploymentSpec, error) {
-
 	originSpec, err := json.Marshal(spec)
 	if err != nil {
 		return apps.DeploymentSpec{}, err
 	}
 
-	patchSpec, err := json.Marshal(patch)
-	if err != nil {
-		return apps.DeploymentSpec{}, err
-	}
+	log := r.Log.WithValues("canarydeployment", "patch debug")
+	log.Info("debug", "origin", string(originSpec), "patch", string(patch))
+
 	var NewDeploymentSpecBytes []byte
 	if patchType == "strategic" {
-		NewDeploymentSpecBytes, err = strategicpatch.StrategicMergePatch(originSpec, patchSpec, apps.DeploymentSpec{})
+		NewDeploymentSpecBytes, err = strategicpatch.StrategicMergePatch(originSpec, patch, apps.DeploymentSpec{})
 		if err != nil {
 			return apps.DeploymentSpec{}, err
 		}
 	} else if patchType == "merge" {
-		NewDeploymentSpecBytes, err = jsonpatch.MergePatch(originSpec, patchSpec)
+		NewDeploymentSpecBytes, err = jsonpatch.MergePatch(originSpec, patch)
 		if err != nil {
 			return apps.DeploymentSpec{}, err
 		}
@@ -152,7 +156,7 @@ func (r *CanaryDeploymentReconciler) buildDeployment(spec *apps.DeploymentSpec, 
 func (r *CanaryDeploymentReconciler) generateNewDeployments(spec *webappv1.CanaryDeploymentSpec, cd *webappv1.CanaryDeployment) ([]apps.Deployment, error) {
 	newDeployments := []apps.Deployment{}
 	for name, patch := range spec.AppSpecs {
-		newDeploymentSpec, err := r.patchDeploymentSpec(&spec.CommonSpec, &patch.Spec, patch.Type)
+		newDeploymentSpec, err := r.patchDeploymentSpec(&spec.CommonSpec, []byte(patch.Spec), patch.Type)
 		if err != nil {
 			return []apps.Deployment{}, err
 		}
