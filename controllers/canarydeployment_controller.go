@@ -23,6 +23,7 @@ import (
 	"fmt"
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/go-logr/logr"
+	"github.com/mitchellh/hashstructure"
 	apps "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -60,7 +61,6 @@ func (r *CanaryDeploymentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, e
 	}
 	// init AppStatus cause golang set nil as default value for map as struct field
 	canaryDeployment.Status.AppStatus = make(map[string]apps.DeploymentStatus)
-	log.Info("fetching CanaryDeployment", "cd_content", canaryDeployment)
 
 	if err := r.removeUselessDeployments(ctx, log, &canaryDeployment); err != nil {
 		log.Error(err, "removeOldDeployment error")
@@ -71,7 +71,6 @@ func (r *CanaryDeploymentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, e
 		log.Error(err, "error generate new deployments")
 		return ctrl.Result{}, err
 	} else {
-		log.Info("newDeployments", "deployments", newDeployments)
 		for _, newDeployment := range newDeployments {
 			oldDeployment := apps.Deployment{}
 			err := r.Client.Get(ctx, client.ObjectKey{Namespace: newDeployment.Namespace, Name: newDeployment.Name}, &oldDeployment)
@@ -87,12 +86,18 @@ func (r *CanaryDeploymentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, e
 					return ctrl.Result{}, err
 				}
 			} else {
-				if err := r.Client.Update(ctx, &newDeployment); err != nil {
-					log.Error(err, "failed to update Deployment update", "name", newDeployment.Name)
+				newHash, err := hashstructure.Hash(newDeployment, nil)
+				if err != nil {
 					return ctrl.Result{}, err
 				}
+				if isChanged(string(newHash), &oldDeployment) {
+					newDeployment.ObjectMeta.Annotations = map[string]string{"lastUpdateHash": string(newHash)}
+					if err := r.Client.Update(ctx, &newDeployment); err != nil {
+						log.Error(err, "failed to update Deployment update", "name", newDeployment.Name)
+						return ctrl.Result{}, err
+					}
+				}
 			}
-			log.Info("newDeployments", "canaryDeployment Status", canaryDeployment)
 			canaryDeployment.Status.AppStatus[newDeployment.Name] = newDeployment.Status
 		}
 		if err := r.Client.Status().Update(ctx, &canaryDeployment); err != nil {
@@ -105,6 +110,17 @@ func (r *CanaryDeploymentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, e
 	return ctrl.Result{}, nil
 }
 
+func isChanged(oldHash string, new *apps.Deployment) bool {
+	if new.ObjectMeta.Annotations == nil {
+		return true
+	}
+	lastUpdateHash, ok := new.ObjectMeta.Annotations["lastUpdateHash"]
+	if !ok {
+		return true
+	}
+	return !(lastUpdateHash == oldHash)
+}
+
 func (r *CanaryDeploymentReconciler) patchDeploymentSpec(
 	spec *apps.DeploymentSpec,
 	patch []byte,
@@ -114,9 +130,6 @@ func (r *CanaryDeploymentReconciler) patchDeploymentSpec(
 	if err != nil {
 		return apps.DeploymentSpec{}, err
 	}
-
-	log := r.Log.WithValues("canarydeployment", "patch debug")
-	log.Info("debug", "origin", string(originSpec), "patch", string(patch))
 
 	var NewDeploymentSpecBytes []byte
 	if patchType == "strategic" {
