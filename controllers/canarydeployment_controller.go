@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"strconv"
 )
 
 var (
@@ -90,8 +91,8 @@ func (r *CanaryDeploymentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, e
 				if err != nil {
 					return ctrl.Result{}, err
 				}
-				if isChanged(string(newHash), &oldDeployment) {
-					newDeployment.ObjectMeta.Annotations = map[string]string{"lastUpdateHash": string(newHash)}
+				if isChanged(strconv.FormatUint(newHash, 10), &oldDeployment) {
+					newDeployment.ObjectMeta.Annotations = map[string]string{"lastUpdateHash": strconv.FormatUint(newHash, 10)}
 					if err := r.Client.Update(ctx, &newDeployment); err != nil {
 						log.Error(err, "failed to update Deployment update", "name", newDeployment.Name)
 						return ctrl.Result{}, err
