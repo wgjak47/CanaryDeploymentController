@@ -71,6 +71,6 @@ spec:
 ```
 
 ## Roadmap
-- [] suite test
-- [] webhook for validations
-- [] support JSON Patch (rfc6902)[https://tools.ietf.org/html/rfc6902]
+- [ ] suite test
+- [ ] webhook for validations
+- [ ] support JSON Patch (rfc6902)[https://tools.ietf.org/html/rfc6902]
